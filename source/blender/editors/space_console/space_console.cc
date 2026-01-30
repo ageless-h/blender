@@ -267,6 +267,9 @@ static void console_operatortypes()
   WM_operatortype_append(CONSOLE_OT_select_set);
   WM_operatortype_append(CONSOLE_OT_select_all);
   WM_operatortype_append(CONSOLE_OT_select_word);
+
+  /* OpenBlender TUI - 实验 1：Hello World */
+  WM_operatortype_append(CONSOLE_OT_hello_opencode);
 }
 
 static void console_keymap(wmKeyConfig *keyconf)

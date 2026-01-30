@@ -1508,4 +1508,41 @@ void CONSOLE_OT_select_word(wmOperatorType *ot)
   ot->poll = ED_operator_console_active;
 }
 
+/* ==============================================================================
+ * OpenBlender TUI - 实验 1：Hello World
+ * ============================================================================== */
+
+static int console_hello_opencode_exec(bContext *C, wmOperator *op)
+{
+  SpaceConsole *sc = CTX_wm_space_console(C);
+  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(C);
+
+  // 添加测试消息到 scrollback
+  const char *msg = "=== OpenBlender TUI: Hello World! ===";
+  console_scrollback_add_str(sc, BLI_strdupn(msg, 41), true);
+
+  // 触发区域重绘
+  ED_area_tag_redraw(area);
+
+  // 控制台日志（用于调试）
+  printf("[OpenBlender TUI] console_hello_opencode_exec() called\n");
+  printf("[OpenBlender TUI] Message added: %s\n", msg);
+
+  return OPERATOR_FINISHED;
+}
+
+static void CONSOLE_OT_hello_opencode(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Hello OpenCode";
+  ot->idname = "CONSOLE_OT_hello_opencode";
+  ot->description = "Test TUI integration - Hello World";
+
+  /* API callbacks. */
+  ot->exec = console_hello_opencode_exec;
+}
+
+/* ============================================================================== */
+
 }  // namespace blender
