@@ -257,4 +257,70 @@ int console_char_pick(SpaceConsole *sc, const ARegion *region, const int mval[2]
   return mval_pick_offset;
 }
 
+/* ==============================================================================
+ * OpenBlender TUI - 实验 3：TUI 渲染基础
+ * ============================================================================== */
+
+static void console_tui_draw(SpaceConsole *sc, ARegion *region)
+{
+  const rcti *rect = &region->winrct;
+  const int winx = rect->xmax - rect->xmin;
+  const int winy = rect->ymax - rect->ymin;
+
+  /* Draw background */
+  immBegin(GPU_PRIM_TRIS, 6);
+  immAttr4ub("color", 0.1f, 0.1f, 0.15f, 1.0f);
+
+  /* Top area (chat history) - 80% of height */
+  int input_y = winy - (winy / 5);
+  immVertex2f(pos, 0.0f, 0.0f);
+  immVertex2f(pos, winx, 0.0f);
+  immVertex2f(pos, winx, input_y);
+  immVertex2f(pos, 0.0f, input_y);
+
+  /* Bottom area (input box) - 20% of height */
+  immAttr4ub("color", 0.15f, 0.15f, 0.2f, 1.0f);
+  immVertex2f(pos, 0.0f, input_y);
+  immVertex2f(pos, winx, input_y);
+  immVertex2f(pos, winx, winy);
+  immVertex2f(pos, 0.0f, winy);
+
+  immEnd();
+
+  /* Draw input box border */
+  const int padding = 10;
+  const int font_height = 14;
+  const int input_height = font_height + padding * 2;
+  const int input_box_y = input_y + (winy - input_y) / 2 - input_height / 2;
+
+  immRectf(
+      padding, input_box_y, winx - padding, input_box_y + input_height, 0.15f, 0.15f, 0.2f, 1.0f);
+
+  /* Draw input text */
+  if (sc->tui_cursor > 0 || sc->tui_input[0] != '\0') {
+    BLF_color4f(0.9f, 0.9f, 0.9f, 1.0f);
+    BLF_position(padding + 5, input_box_y + padding + 3, 0);
+    BLF_draw(sc->tui_input, sc->tui_cursor);
+  }
+  else {
+    BLF_color4f(0.5f, 0.5f, 0.5f, 1.0f);
+    BLF_position(padding + 5, input_box_y + padding + 3, 0);
+    BLF_draw("Type a message...", 15);
+  }
+
+  /* Draw cursor */
+  if (sc->tui_mode) {
+    const int cursor_x = padding + 5 + BLF_width(0, sc->tui_input, sc->tui_cursor);
+    const int cursor_y = input_box_y + padding + 2;
+    const int cursor_height = font_height;
+
+    immRectf(cursor_x, cursor_y, cursor_x + 2, cursor_y + cursor_height, 1.0f, 1.0f, 1.0f, 1.0f);
+  }
+}
+
+void console_tui_render(SpaceConsole *sc, ARegion *region)
+{
+  console_tui_draw(sc, region);
+}
+
 }  // namespace blender

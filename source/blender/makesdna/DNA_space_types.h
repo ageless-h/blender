@@ -945,6 +945,13 @@ struct SpaceConsole {
   /** Selection offset in bytes. */
   int sel_start = 0;
   int sel_end = 0;
+
+  /* OpenBlender TUI */
+  char tui_mode = 0;
+  char tui_input[1024] = "";
+  int tui_cursor = 0;
+  /** ConsoleLine; TUI message history. */
+  ListBaseT<ConsoleLine> tui_history = {nullptr, nullptr};
 };
 
 /** \} */

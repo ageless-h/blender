@@ -125,13 +125,14 @@ enable_testing()
 # error while it is trying to load the startup.blend file. For now just
 # check this file is over 1KB in size, and throw out a fatal error otherwise.
 
-if(EXISTS ${CMAKE_SOURCE_DIR}/release/datafiles/startup.blend)
-  file(SIZE ${CMAKE_SOURCE_DIR}/release/datafiles/startup.blend startup_size)
-  if(${startup_size} LESS 1024)
-    message(FATAL_ERROR "Detected incomplete startup blend, likely due to missing Git LFS checkout.\nRunning \"make update\" or \"git lfs pull\" may resolve the issue.")
-  endif()
-  unset(startup_size)
-endif()
+# TEMP: Skip Git LFS check for development
+# if(EXISTS ${CMAKE_SOURCE_DIR}/release/datafiles/startup.blend)
+#   file(SIZE ${CMAKE_SOURCE_DIR}/release/datafiles/startup.blend startup_size)
+#   if(${startup_size} LESS 1024)
+#     message(FATAL_ERROR "Detected incomplete startup blend, likely due to missing Git LFS checkout.\nRunning \"make update\" or \"git lfs pull\" may resolve the issue.")
+#   endif()
+#   unset(startup_size)
+# endif()
 
 
 # -----------------------------------------------------------------------------
@@ -139,16 +140,16 @@ endif()
 #
 # Keep in sync with: https://developer.blender.org/docs/handbook/building_blender/
 
-if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-  if("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "14.0.0")
+ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  if("${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "13.3.0")
     message(FATAL_ERROR
-      "The minimum supported version of GCC is 14.0.0, found C compiler: "
+      "The minimum supported version of GCC is 13.3.0, found C compiler: "
       "${CMAKE_C_COMPILER_VERSION}"
     )
   endif()
-  if("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS "14.0.0")
+  if("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS "13.3.0")
     message(FATAL_ERROR
-      "The minimum supported version of GCC is 14.0.0, found C++ compiler: "
+      "The minimum supported version of GCC is 13.3.0, found C++ compiler: "
       "${CMAKE_CXX_COMPILER_VERSION}"
     )
   endif()

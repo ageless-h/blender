@@ -234,8 +234,15 @@ static void console_main_region_draw(const bContext *C, ARegion *region)
 
   /* data... */
 
-  console_history_verify(C); /* make sure we have some command line */
-  console_textview_main(sc, region);
+  if (sc->tui_mode) {
+    /* TUI mode rendering */
+    console_tui_render(sc, region);
+  }
+  else {
+    /* Normal console rendering */
+    console_history_verify(C); /* make sure we have some command line */
+    console_textview_main(sc, region);
+  }
 
   /* reset view matrix */
   ui::view2d_view_restore(C);
@@ -268,8 +275,9 @@ static void console_operatortypes()
   WM_operatortype_append(CONSOLE_OT_select_all);
   WM_operatortype_append(CONSOLE_OT_select_word);
 
-  /* OpenBlender TUI - 实验 1：Hello World */
+  /* OpenBlender TUI */
   WM_operatortype_append(CONSOLE_OT_hello_opencode);
+  WM_operatortype_append(CONSOLE_OT_openblender);
 }
 
 static void console_keymap(wmKeyConfig *keyconf)

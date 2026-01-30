@@ -1543,6 +1543,43 @@ static void CONSOLE_OT_hello_opencode(wmOperatorType *ot)
   ot->exec = console_hello_opencode_exec;
 }
 
+/* ==============================================================================
+ * OpenBlender TUI - 实验 2：模式切换
+ * ============================================================================== */
+
+static int console_openblender_exec(bContext *C, wmOperator * /*op*/)
+{
+  SpaceConsole *sc = CTX_wm_space_console(C);
+  ScrArea *area = CTX_wm_area(C);
+
+  /* Toggle TUI mode */
+  sc->tui_mode = !sc->tui_mode;
+
+  if (sc->tui_mode) {
+    /* Initialize TUI state when entering */
+    memset(sc->tui_input, 0, sizeof(sc->tui_input));
+    sc->tui_cursor = 0;
+  }
+
+  /* Trigger redraw */
+  ED_area_tag_redraw(area);
+
+  printf("[OpenBlender TUI] TUI mode: %s\n", sc->tui_mode ? "ON" : "OFF");
+
+  return OPERATOR_FINISHED;
+}
+
+static void CONSOLE_OT_openblender(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "OpenBlender TUI";
+  ot->idname = "CONSOLE_OT_openblender";
+  ot->description = "Toggle OpenBlender TUI mode";
+
+  /* API callbacks. */
+  ot->exec = console_openblender_exec;
+}
+
 /* ============================================================================== */
 
 }  // namespace blender

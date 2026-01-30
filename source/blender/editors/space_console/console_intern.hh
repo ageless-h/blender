@@ -25,6 +25,9 @@ void console_textview_main(SpaceConsole *sc, const ARegion *region);
 int console_textview_height(SpaceConsole *sc, const ARegion *region);
 int console_char_pick(SpaceConsole *sc, const ARegion *region, const int mval[2]);
 
+/* OpenBlender TUI */
+void console_tui_render(SpaceConsole *sc, const ARegion *region);
+
 void console_scrollback_prompt_begin(SpaceConsole *sc, ConsoleLine *cl_dummy);
 void console_scrollback_prompt_end(SpaceConsole *sc, ConsoleLine *cl_dummy);
 
