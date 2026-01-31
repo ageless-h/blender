@@ -1039,7 +1039,8 @@ def _extensions_wheel_filter_for_this_system(wheels):
                             str,
                     ):
                         print("Error: wheel \"{:s}\" unable to parse Python ABI version {:s}".format(
-                            wheel_filename, python_versions,
+                            # `python_versions_stable_abi` is the error.
+                            wheel_filename, python_versions_stable_abi,
                         ))
                     elif (python_version_current[0],) in python_versions_stable_abi:
                         if python_version_current >= python_version:
@@ -1238,21 +1239,22 @@ def _preferences_theme_state_create():
     if (result := file_mtime_or_none(filepath)) is not None:
         return result, filepath
 
-    # It's possible the XML was renamed after upgrading, detect another.
+    # Fallback for renamed XML theme files: the theme XML may have been renamed
+    # after upgrading (e.g. version bump), so scan the directory for any XML file.
     dirpath = os.path.dirname(filepath)
+    del filepath
 
     # Not essential, just avoids a demoted error from `scandir` which seems like it may be a bug.
     if not os.path.exists(dirpath):
         return None, None
 
-    filepath = ""
     for entry in scandir_with_demoted_errors(dirpath):
         if entry.is_dir():
             continue
-        # There must only ever be one.
+        # Theme directories contain only one XML file, use the first one found.
         if entry.name.lower().endswith(".xml"):
             if (result := file_mtime_or_none(entry.path)) is not None:
-                return result, filepath
+                return result, entry.path
     return None, None
 
 
@@ -1727,8 +1729,7 @@ class EXTENSIONS_OT_repo_sync_all(Operator, _ExtCmdMixIn):
 
 
 class EXTENSIONS_OT_repo_refresh_all(Operator):
-    """Scan extension & legacy add-ons for changes to modules & meta-data (similar to restarting). """ \
-        """Any issues are reported as warnings"""
+    """Scan extension & legacy add-ons for changes to modules & meta-data (similar to restarting)"""
     bl_idname = "extensions.repo_refresh_all"
     bl_label = "Refresh Local"
 
@@ -1741,6 +1742,10 @@ class EXTENSIONS_OT_repo_refresh_all(Operator):
         self.report({'WARNING'}, "{:s}: {:s}".format(repo_name, str(ex)))
 
     def execute(self, _context):
+        # NOTE: report errors as warnings.
+        # - So the user is aware there are problems.
+        # - Because this operation may involve many repositories,
+        #   failing with a single error doesn't make sense.
         import importlib
         import addon_utils
 
@@ -1785,7 +1790,7 @@ class EXTENSIONS_OT_repo_refresh_all(Operator):
         # Ensure compatibility info and wheels is up to date.
         addon_utils.extensions_refresh(
             ensure_wheels=True,
-            handle_error=lambda ex: self.report({'ERROR'}, str(ex)),
+            handle_error=lambda ex: self.report({'WARNING'}, str(ex)),
         )
 
         _preferences_ui_redraw()
@@ -3252,7 +3257,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
             # This shouldn't happen unless someone goes out of there way
             # to enable `do_legacy_replace` for a non-legacy extension.
             # Use a print here as it's such a corner case and harmless.
-            print("Internal error, legacy lookup failed:", addon_module_name)
+            print("Internal error, legacy lookup failed:", pkg_id)
             return
 
         try:
