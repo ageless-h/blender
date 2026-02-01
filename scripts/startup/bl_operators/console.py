@@ -238,6 +238,69 @@ class ConsoleCopyAsScript(Operator):
             return {'FINISHED'}
 
 
+class ConsoleCopyAsScriptLast(Operator):
+    bl_idname = "console.copy_as_script_last"
+    bl_label = "Copy to Clipboard (Last as Script)"
+
+    @classmethod
+    def poll(cls, context):
+        if not (context.area and context.area.type == 'CONSOLE'):
+            return False
+        sc = context.space_data
+        return getattr(sc, "language", "") == "python"
+
+    def execute(self, context):
+        from _console_python import PROMPT, PROMPT_MULTI
+
+        sc = context.space_data
+        scrollback = sc.scrollback
+
+        last_input_index = None
+        for i in range(len(scrollback) - 1, -1, -1):
+            line = scrollback[i]
+            if line.type != 'INPUT':
+                continue
+            body = line.body
+            if not body:
+                continue
+            if body.startswith(PROMPT) or body.startswith(PROMPT_MULTI):
+                last_input_index = i
+                break
+
+        if last_input_index is None:
+            return {'CANCELLED'}
+
+        lines = [
+            "import bpy",
+            "from bpy import data as D",
+            "from bpy import context as C",
+            "from mathutils import *",
+            "from math import *",
+            "",
+        ]
+
+        for line in scrollback[last_input_index:]:
+            text = line.body
+            type = line.type
+
+            if type == 'INFO':  # Ignore auto-completion.
+                continue
+            if type == 'INPUT':
+                if text.startswith(PROMPT):
+                    text = text[len(PROMPT):]
+                elif text.startswith(PROMPT_MULTI):
+                    text = text[len(PROMPT_MULTI):]
+            elif type == 'OUTPUT':
+                text = "#~ " + text
+            elif type == 'ERROR':
+                text = "#! " + text
+
+            lines.append(text)
+
+        context.window_manager.clipboard = "\n".join(lines)
+        return {'FINISHED'}
+
+
 class ConsoleBanner(Operator):
     """Print a message when the terminal initializes"""
     bl_idname = "console.banner"
@@ -297,6 +360,7 @@ classes = (
     ConsoleAutocomplete,
     ConsoleBanner,
     ConsoleCopyAsScript,
+    ConsoleCopyAsScriptLast,
     ConsoleExec,
     ConsoleHistorySearch,
     ConsoleLanguage,

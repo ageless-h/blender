@@ -1148,14 +1148,48 @@ static wmOperatorStatus console_scrollback_append_exec(bContext *C, wmOperator *
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
-  /* own this text in the new line, don't free */
+  /* Own this text in the new line, don't free. */
   char *str = RNA_string_get_alloc(op->ptr, "text", nullptr, 0, nullptr);
   int type = RNA_enum_get(op->ptr, "type");
 
+  if ((str == nullptr) || (*str == '\0')) {
+    MEM_SAFE_DELETE(str);
+    return OPERATOR_CANCELLED;
+  }
+
   console_history_verify(C);
 
-  ci = console_scrollback_add_str(sc, str, true); /* own the string */
-  ci->type = type;
+  const bool has_newline = (BLI_strchr(str, '\n') != nullptr);
+  if (!has_newline) {
+    const int str_len = strlen(str);
+    if ((str_len > 0) && (str[str_len - 1] == '\r')) {
+      str[str_len - 1] = '\0';
+    }
+
+    ci = console_scrollback_add_str(sc, str, true); /* own the string */
+    ci->type = type;
+  }
+  else {
+    const char *line_start = str;
+    while (true) {
+      const char *line_end = BLI_strchr_or_end(line_start, '\n');
+      int line_len = int(line_end - line_start);
+      if ((line_len > 0) && (line_start[line_len - 1] == '\r')) {
+        line_len--;
+      }
+
+      char *line = BLI_strdupn(line_start, line_len);
+      ci = console_scrollback_add_str(sc, line, true); /* own the string */
+      ci->type = type;
+
+      if (*line_end == '\0') {
+        break;
+      }
+      line_start = line_end + 1;
+    }
+
+    MEM_delete(str);
+  }
 
   console_scrollback_limit(sc);
 

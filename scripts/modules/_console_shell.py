@@ -16,11 +16,10 @@ language_id = "shell"
 
 
 def add_scrollback(text, text_type):
-    for line in text.split("\n"):
-        bpy.ops.console.scrollback_append(
-            text=line.replace("\t", "    "),
-            type=text_type,
-        )
+    bpy.ops.console.scrollback_append(
+        text=text.replace("\t", "    "),
+        type=text_type,
+    )
 
 
 def shell_run(text):
