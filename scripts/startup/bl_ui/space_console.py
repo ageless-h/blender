@@ -93,6 +93,7 @@ class CONSOLE_MT_console(Menu):
         layout.operator("console.copy", text="Cut").delete = True
         layout.operator("console.copy", text="Copy")
         layout.operator("console.paste", text="Paste")
+        layout.operator("console.paste", text="Paste and Execute").execute = True
 
         layout.separator()
 
@@ -103,6 +104,7 @@ class CONSOLE_MT_console(Menu):
 
         layout.operator("console.history_cycle", text="Backward in History").reverse = True
         layout.operator("console.history_cycle", text="Forward in History").reverse = False
+        layout.operator("console.history_search", text="History Search")
 
         layout.separator()
 
@@ -126,6 +128,7 @@ class CONSOLE_MT_context_menu(Menu):
         layout.operator("console.copy", text="Cut").delete = True
         layout.operator("console.copy", text="Copy")
         layout.operator("console.paste", text="Paste")
+        layout.operator("console.paste", text="Paste and Execute").execute = True
 
         layout.separator()
 
@@ -136,6 +139,7 @@ class CONSOLE_MT_context_menu(Menu):
 
         layout.operator("console.history_cycle", text="Backward in History").reverse = True
         layout.operator("console.history_cycle", text="Forward in History").reverse = False
+        layout.operator("console.history_search", text="History Search")
 
         layout.separator()
 

@@ -48,6 +48,152 @@ class ConsoleExec(Operator):
             return {'FINISHED'}
 
 
+class ConsoleHistorySearch(Operator):
+    bl_idname = "console.history_search"
+    bl_label = "Console History Search"
+
+    @classmethod
+    def poll(cls, context):
+        return (context.area and context.area.type == 'CONSOLE')
+
+    def _update_header(self, context):
+        match = "[no match]"
+        if getattr(self, "_matches", None):
+            match = self._matches[self._match_index]
+        query = getattr(self, "_query", "")
+        context.area.header_text_set("History Search: {:s}  {:s}".format(query, match))
+
+    def cancel(self, context):
+        if context.area:
+            context.area.header_text_set(None)
+
+    def _update_matches(self, context):
+        sc = context.space_data
+        query = getattr(self, "_query", "")
+        query_cf = query.casefold()
+
+        matches = []
+        seen = set()
+        for cl in reversed(sc.history[:-1]):
+            body = cl.body
+            if not body:
+                continue
+            if query_cf and (query_cf not in body.casefold()):
+                continue
+            if body in seen:
+                continue
+            seen.add(body)
+            matches.append(body)
+
+        self._matches = matches
+        if not matches:
+            self._match_index = 0
+        else:
+            self._match_index = self._match_index % len(matches)
+
+        self._update_header(context)
+
+    def _cycle_match(self, context, step):
+        if not getattr(self, "_matches", None):
+            self._update_header(context)
+            return
+
+        self._match_index = (self._match_index + step) % len(self._matches)
+        self._update_header(context)
+
+    def invoke(self, context, _event):
+        sc = context.space_data
+
+        try:
+            line_object = sc.history[-1]
+        except:
+            return {'CANCELLED'}
+
+        self._original_text = line_object.body
+        self._query = ""
+        self._match_index = 0
+        self._matches = []
+
+        self._update_matches(context)
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        if not (context.area and context.area.type == 'CONSOLE'):
+            if context.area:
+                context.area.header_text_set(None)
+            return {'CANCELLED'}
+
+        if event.type in {'WHEELUPMOUSE', 'WHEELDOWNMOUSE', 'MIDDLEMOUSE'}:
+            return {'PASS_THROUGH'}
+
+        if event.type == 'TEXTINPUT':
+            text = (
+                getattr(event, "unicode", "") or
+                getattr(event, "ascii", "") or
+                getattr(event, "text", "")
+            )
+            if text:
+                self._query += text
+                self._match_index = 0
+                self._update_matches(context)
+            return {'RUNNING_MODAL'}
+
+        if event.type == 'BACK_SPACE' and event.value == 'PRESS':
+            if self._query:
+                self._query = self._query[:-1]
+                self._match_index = 0
+                self._update_matches(context)
+            return {'RUNNING_MODAL'}
+
+        if event.type == 'R' and event.ctrl and event.value == 'PRESS':
+            self._cycle_match(context, -1 if event.shift else 1)
+            return {'RUNNING_MODAL'}
+
+        if event.type == 'UP_ARROW' and event.value == 'PRESS':
+            self._cycle_match(context, -1)
+            return {'RUNNING_MODAL'}
+
+        if event.type == 'DOWN_ARROW' and event.value == 'PRESS':
+            self._cycle_match(context, 1)
+            return {'RUNNING_MODAL'}
+
+        if event.type in {'RET', 'NUMPAD_ENTER'} and event.value == 'PRESS':
+            sc = context.space_data
+            try:
+                line_object = sc.history[-1]
+            except:
+                context.area.header_text_set(None)
+                return {'CANCELLED'}
+
+            if self._matches:
+                text = self._matches[self._match_index]
+            else:
+                text = self._original_text
+
+            line_object.body = text
+            line_object.current_character = len(text)
+
+            context.area.header_text_set(None)
+            return {'FINISHED'}
+
+        if event.type in {'ESC', 'RIGHTMOUSE'}:
+            sc = context.space_data
+            try:
+                line_object = sc.history[-1]
+            except:
+                context.area.header_text_set(None)
+                return {'CANCELLED'}
+
+            line_object.body = self._original_text
+            line_object.current_character = len(self._original_text)
+
+            context.area.header_text_set(None)
+            return {'CANCELLED'}
+
+        return {'RUNNING_MODAL'}
+
+
 class ConsoleAutocomplete(Operator):
     """Evaluate the namespace up until the cursor and give a list of """ \
         """options or complete the name if there is only one"""
@@ -152,5 +298,6 @@ classes = (
     ConsoleBanner,
     ConsoleCopyAsScript,
     ConsoleExec,
+    ConsoleHistorySearch,
     ConsoleLanguage,
 )

@@ -3450,6 +3450,8 @@ def km_console(_params):
         ("console.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("console.copy", {"type": 'X', "value": 'PRESS', "ctrl": True}, {"properties": [("delete", True)]}),
         ("console.paste", {"type": 'V', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
+        ("console.paste", {"type": 'V', "value": 'PRESS', "ctrl": True, "shift": True, "repeat": True},
+         {"properties": [("execute", True)]}),
         ("console.select_set", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("console.select_all", {"type": 'A', "value": 'PRESS', "ctrl": True}, None),
         ("console.select_word", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
@@ -3457,6 +3459,7 @@ def km_console(_params):
          {"properties": [("text", '\t')]}),
         ("console.indent_or_autocomplete", {"type": 'TAB', "value": 'PRESS', "repeat": True}, None),
         ("console.unindent", {"type": 'TAB', "value": 'PRESS', "shift": True, "repeat": True}, None),
+        ("console.history_search", {"type": 'R', "value": 'PRESS', "ctrl": True}, None),
         *_template_items_context_menu("CONSOLE_MT_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}),
         ("console.insert", {"type": 'TEXTINPUT', "value": 'ANY', "any": True, "repeat": True}, None),
     ])

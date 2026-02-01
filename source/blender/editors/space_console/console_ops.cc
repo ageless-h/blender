@@ -482,6 +482,56 @@ static wmOperatorStatus console_move_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus console_paste_exec(bContext *C, wmOperator *op);
+
+static wmOperatorStatus console_paste_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+{
+  const bool do_execute = RNA_boolean_get(op->ptr, "execute");
+  if (!do_execute) {
+    return console_paste_exec(C, op);
+  }
+
+  const bool selection = RNA_boolean_get(op->ptr, "selection");
+  int buf_str_len;
+  char *buf_str = WM_clipboard_text_get(selection, true, &buf_str_len);
+  if (buf_str == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+  if (*buf_str == '\0') {
+    MEM_delete(buf_str);
+    return OPERATOR_CANCELLED;
+  }
+
+  int line_count = 0;
+  const char *line_start = buf_str;
+  while (true) {
+    const char *line_end = BLI_strchr_or_end(line_start, '\n');
+    int line_len = int(line_end - line_start);
+    if ((line_len > 0) && (line_start[line_len - 1] == '\r')) {
+      line_len--;
+    }
+    if ((line_len == 0) && (*line_end == '\0')) {
+      break;
+    }
+    line_count++;
+    if (*line_end == '\0') {
+      break;
+    }
+    line_start = line_end + 1;
+  }
+
+  MEM_delete(buf_str);
+
+  const int execute_count = std::max(0, line_count - 1);
+  if (execute_count <= 0) {
+    return console_paste_exec(C, op);
+  }
+
+  char message[256];
+  BLI_snprintf(message, sizeof(message), "Execute %d pasted lines?", execute_count);
+  return WM_operator_confirm_message(C, op, message);
+}
+
 void CONSOLE_OT_move(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1193,6 +1243,7 @@ void CONSOLE_OT_copy(wmOperatorType *ot)
 static wmOperatorStatus console_paste_exec(bContext *C, wmOperator *op)
 {
   const bool selection = RNA_boolean_get(op->ptr, "selection");
+  const bool do_execute = RNA_boolean_get(op->ptr, "execute");
   SpaceConsole *sc = CTX_wm_space_console(C);
   ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);
@@ -1208,20 +1259,53 @@ static wmOperatorStatus console_paste_exec(bContext *C, wmOperator *op)
     MEM_delete(buf_str);
     return OPERATOR_CANCELLED;
   }
-  const char *buf_step = buf_str;
-  do {
-    const char *buf = buf_step;
-    buf_step = const_cast<char *>(BLI_strchr_or_end(buf, '\n'));
-    const int buf_len = buf_step - buf;
-    if (buf != buf_str) {
+
+  const bool is_multiline = (BLI_strchr(buf_str, '\n') != nullptr);
+  int pasted_line_count = 0;
+
+  const char *line_start = buf_str;
+  while (true) {
+    const char *line_end = BLI_strchr_or_end(line_start, '\n');
+    int line_len = int(line_end - line_start);
+    if ((line_len > 0) && (line_start[line_len - 1] == '\r')) {
+      line_len--;
+    }
+    if ((line_len == 0) && (*line_end == '\0')) {
+      break;
+    }
+
+    pasted_line_count++;
+
+    if (do_execute && (pasted_line_count > 1)) {
       WM_operator_name_call(
           C, "CONSOLE_OT_execute", wm::OpCallContext::ExecDefault, nullptr, nullptr);
       ci = console_history_verify(C);
     }
+
+    if (!do_execute && (pasted_line_count > 1)) {
+      console_delete_editable_selection(sc);
+      console_line_insert(ci, " ", 1);
+      console_select_offset(sc, 1);
+    }
+
     console_delete_editable_selection(sc);
-    console_line_insert(ci, buf, buf_len);
-    console_select_offset(sc, buf_len);
-  } while (*buf_step ? ((void)buf_step++, true) : false);
+    console_line_insert(ci, line_start, line_len);
+    console_select_offset(sc, line_len);
+
+    if (*line_end == '\0') {
+      break;
+    }
+    line_start = line_end + 1;
+  }
+
+  if (is_multiline) {
+    if (do_execute) {
+      BKE_reportf(op->reports, RPT_INFO, "Executed %d pasted lines", std::max(0, pasted_line_count - 1));
+    }
+    else {
+      BKE_reportf(op->reports, RPT_INFO, "Pasted %d lines", pasted_line_count);
+    }
+  }
 
   MEM_delete(buf_str);
 
@@ -1243,6 +1327,7 @@ void CONSOLE_OT_paste(wmOperatorType *ot)
   /* API callbacks. */
   ot->poll = ED_operator_console_active;
   ot->exec = console_paste_exec;
+  ot->invoke = console_paste_invoke;
 
   /* properties */
   PropertyRNA *prop;
@@ -1251,6 +1336,10 @@ void CONSOLE_OT_paste(wmOperatorType *ot)
                          false,
                          "Selection",
                          "Paste text selected elsewhere rather than copied (X11/Wayland only)");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(
+      ot->srna, "execute", false, "Execute", "Execute pasted text after inserting it");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
