@@ -1159,7 +1159,7 @@ static wmOperatorStatus console_scrollback_append_exec(bContext *C, wmOperator *
 
   console_history_verify(C);
 
-  const bool has_newline = (BLI_strchr(str, '\n') != nullptr);
+  const bool has_newline = (strchr(str, '\n') != nullptr);
   if (!has_newline) {
     const int str_len = strlen(str);
     if ((str_len > 0) && (str[str_len - 1] == '\r')) {
@@ -1294,7 +1294,7 @@ static wmOperatorStatus console_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const bool is_multiline = (BLI_strchr(buf_str, '\n') != nullptr);
+  const bool is_multiline = (strchr(buf_str, '\n') != nullptr);
   int pasted_line_count = 0;
 
   const char *line_start = buf_str;
