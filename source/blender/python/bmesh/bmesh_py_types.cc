@@ -143,6 +143,18 @@ PyDoc_STRVAR(
     "UV selected state of this element.\n"
     "\n"
     ":type: bool\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_bm_elem_uv_select_vert_doc,
+    "UV vertex selected state of this loop.\n"
+    "\n"
+    ":type: bool\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_bm_elem_uv_select_edge_doc,
+    "UV edge selected state of this loop.\n"
+    "\n"
+    ":type: bool\n");
 
 static PyObject *bpy_bm_elem_hflag_get(BPy_BMElem *self, void *flag)
 {
@@ -347,7 +359,7 @@ static PyObject *bpy_bmelemseq_elem_get(BPy_BMElem *self, void *itype)
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bm_is_valid_doc,
-    "True when this element is valid (hasn't been removed).\n"
+    "True when this element is valid (hasn't been freed or removed).\n"
     "\n"
     ":type: bool\n");
 static PyObject *bpy_bm_is_valid_get(BPy_BMGeneric *self, void * /*closure*/)
@@ -1149,12 +1161,12 @@ static PyGetSetDef bpy_bmloop_getseters[] = {
     {"uv_select_vert",
      reinterpret_cast<getter>(bpy_bm_elem_hflag_get),
      reinterpret_cast<setter>(bpy_bm_elem_hflag_set),
-     bpy_bm_elem_uv_select_doc,
+     bpy_bm_elem_uv_select_vert_doc,
      reinterpret_cast<void *>(BM_ELEM_SELECT_UV)},
     {"uv_select_edge",
      reinterpret_cast<getter>(bpy_bm_elem_hflag_get),
      reinterpret_cast<setter>(bpy_bm_elem_hflag_set),
-     bpy_bm_elem_uv_select_doc,
+     bpy_bm_elem_uv_select_edge_doc,
      reinterpret_cast<void *>(BM_ELEM_SELECT_UV_EDGE)},
     {"index",
      reinterpret_cast<getter>(bpy_bm_elem_index_get),
@@ -1639,7 +1651,7 @@ PyDoc_STRVAR(
     bpy_bmesh_uv_select_flush_mode_doc,
     ".. method:: uv_select_flush_mode(*, flush_down=False)\n"
     "\n"
-    "   Flush selection based on the current mode :attr:`bmesh.types.BMesh.select_mode`.\n"
+    "   Flush UV selection based on the current mode :attr:`bmesh.types.BMesh.select_mode`.\n"
     "\n"
     "   :param flush_down: Flush selection down from faces to edges & verts "
     "or from edges to verts. "
@@ -2285,10 +2297,9 @@ PyDoc_STRVAR(
     "\n"
     "   .. note::\n"
     "\n"
-    "      This only flushes down, so selecting a face will select all its "
-    "vertices but de-selecting a vertex "
-    "won't de-select all the faces that use it, before finishing with a mesh "
-    "typically flushing is still needed.\n");
+    "      This flushes selection down (e.g. selecting a face also selects its edges and "
+    "vertices), but not up (e.g. de-selecting a vertex won't de-select faces that use it). "
+    "Before finishing with a mesh, flushing is typically still needed.\n");
 static PyObject *bpy_bm_elem_select_set(BPy_BMElem *self, PyObject *value)
 {
   int param;
@@ -2337,9 +2348,8 @@ PyDoc_STRVAR(
     "\n"
     "   Copy values from another element of matching type.\n"
     "\n"
-    "   :param other: Another element of matching type to copy from.\n"
-    "   :type other: :class:`bmesh.types.BMVert` | :class:`bmesh.types.BMEdge` | "
-    ":class:`bmesh.types.BMFace` | :class:`bmesh.types.BMLoop`\n");
+    "   :param other: Another element of the same type to copy from.\n"
+    "   :type other: Self\n");
 static PyObject *bpy_bm_elem_copy_from(BPy_BMElem *self, BPy_BMElem *value)
 {
   BPY_BM_CHECK_OBJ(self);
@@ -2555,6 +2565,8 @@ PyDoc_STRVAR(
     bpy_bmedge_calc_length_doc,
     ".. method:: calc_length()\n"
     "\n"
+    "   Return the length of the edge.\n"
+    "\n"
     "   :return: The length between both verts.\n"
     "   :rtype: float\n");
 static PyObject *bpy_bmedge_calc_length(BPy_BMEdge *self)
@@ -2567,6 +2579,8 @@ PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmedge_calc_face_angle_doc,
     ".. method:: calc_face_angle(fallback=None)\n"
+    "\n"
+    "   Return the angle between this edge's two connected faces.\n"
     "\n"
     "   :param fallback: return this when the edge doesn't have 2 faces\n"
     "      (instead of raising a :exc:`ValueError`).\n"
@@ -2607,6 +2621,8 @@ PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmedge_calc_face_angle_signed_doc,
     ".. method:: calc_face_angle_signed(fallback=None)\n"
+    "\n"
+    "   Return the signed angle between this edge's two connected faces.\n"
     "\n"
     "   :param fallback: return this when the edge doesn't have 2 faces\n"
     "      (instead of raising a :exc:`ValueError`).\n"
@@ -2819,17 +2835,16 @@ PyDoc_STRVAR(
     bpy_bmface_uv_select_set_doc,
     ".. method:: uv_select_set(select)\n"
     "\n"
-    "   Select the face.\n"
+    "   Set the UV face selection state.\n"
     "\n"
     "   :param select: Select or de-select.\n"
     "   :type select: bool\n"
     "\n"
     "   .. note::\n"
     "\n"
-    "      Currently this only flushes down, so selecting a face will select all its "
-    "vertices but de-selecting a vertex "
-    "won't de-select all the faces that use it, before finishing with a mesh "
-    "typically flushing is still needed.\n");
+    "      This flushes selection down (selecting a face also selects its edges and "
+    "vertices), but not up. Before finishing with a mesh, "
+    "flushing with :meth:`bmesh.types.BMesh.uv_select_flush_mode` is still needed.\n");
 static PyObject *bpy_bmface_uv_select_set(BPy_BMFace *self, PyObject *value)
 {
   BMesh *bm = self->bm;
@@ -3085,17 +3100,16 @@ PyDoc_STRVAR(
     bpy_bmloop_uv_select_vert_set_doc,
     ".. method:: uv_select_vert_set(select)\n"
     "\n"
-    "   Select the UV vertex.\n"
+    "   Set the UV vertex selection state.\n"
     "\n"
     "   :param select: Select or de-select.\n"
     "   :type select: bool\n"
     "\n"
     "   .. note::\n"
     "\n"
-    "      Currently this only flushes down, so selecting an edge will select all its "
-    "vertices but de-selecting a vertex "
-    "won't de-select the edges & faces that use it, before finishing with a mesh "
-    "typically flushing with :meth:`bmesh.types.BMesh.uv_select_flush_mode` is still needed.\n");
+    "      This does not flush selection, so selecting a vertex won't "
+    "select the edges & faces that use it. Before finishing with a mesh, "
+    "flushing with :meth:`bmesh.types.BMesh.uv_select_flush_mode` is still needed.\n");
 static PyObject *bpy_bmloop_uv_select_vert_set(BPy_BMLoop *self, PyObject *value)
 {
   BMesh *bm = self->bm;
@@ -3123,10 +3137,10 @@ PyDoc_STRVAR(
     "\n"
     "   .. note::\n"
     "\n"
-    "      This only flushes down, so selecting an edge will select all its "
-    "vertices but de-selecting a vertex "
-    "won't de-select the faces that use it, before finishing with a mesh "
-    "typically flushing with :meth:`bmesh.types.BMesh.uv_select_flush_mode` is still needed.\n");
+    "      This flushes selection down (selecting an edge also selects its "
+    "vertices), but not up (de-selecting a vertex won't de-select the edges & faces "
+    "that use it). Before finishing with a mesh, "
+    "flushing with :meth:`bmesh.types.BMesh.uv_select_flush_mode` is still needed.\n");
 static PyObject *bpy_bmloop_uv_select_edge_set(BPy_BMLoop *self, PyObject *value)
 {
   BMesh *bm = self->bm;
@@ -3532,11 +3546,11 @@ PyDoc_STRVAR(
     "\n"
     "   Return an edge which uses the **verts** passed.\n"
     "\n"
-    "   :param verts: Sequence of verts.\n"
+    "   :param verts: Pair of verts (exactly 2).\n"
     "   :type verts: Sequence[:class:`bmesh.types.BMVert`]\n"
     "   :param fallback: Return this value if nothing is found.\n"
     "   :type fallback: Any\n"
-    "   :return: The edge found or None\n"
+    "   :return: The edge found or the fallback value.\n"
     "   :rtype: :class:`bmesh.types.BMEdge` | None\n");
 static PyObject *bpy_bmedgeseq_get__method(BPy_BMElemSeq *self, PyObject *args)
 {
@@ -3585,7 +3599,7 @@ PyDoc_STRVAR(
     "   :type verts: Sequence[:class:`bmesh.types.BMVert`]\n"
     "   :param fallback: Return this value if nothing is found.\n"
     "   :type fallback: Any\n"
-    "   :return: The face found or None\n"
+    "   :return: The face found or the fallback value.\n"
     "   :rtype: :class:`bmesh.types.BMFace` | None\n");
 static PyObject *bpy_bmfaceseq_get__method(BPy_BMElemSeq *self, PyObject *args)
 {
