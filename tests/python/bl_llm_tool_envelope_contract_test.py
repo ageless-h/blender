@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import importlib
 import pathlib
 import sys
 import unittest
@@ -11,15 +12,13 @@ THIS_DIR = pathlib.Path(__file__).resolve().parent
 SCRIPTS_MODULES_DIR = THIS_DIR.parents[1] / "scripts" / "modules"
 sys.path.append(str(SCRIPTS_MODULES_DIR))
 
-from _bpy_internal.llm_runtime import tool_envelope_contract as contract  # noqa: E402
-from _bpy_internal.llm_runtime import tool_envelope_json_parsing as json_parsing  # noqa: E402
+contract = importlib.import_module("_bpy_internal.llm_runtime.tool_envelope_contract")
+json_parsing = importlib.import_module("_bpy_internal.llm_runtime.tool_envelope_json_parsing")
 
 
 class CanonicalToolCallContractTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.parser = json_parsing.ValidatingParser()
-
     def test_parse_valid_tool_call_payload(self) -> None:
+        parser = json_parsing.ValidatingParser()
         payload = {
             "provider": "openai",
             "call_id": "call-1",
@@ -36,11 +35,12 @@ class CanonicalToolCallContractTest(unittest.TestCase):
                 "timeout_ms": 120000,
             },
         }
-        model = self.parser.parse_and_validate(contract.CanonicalToolCall, payload)
+        model = parser.parse_and_validate(contract.CanonicalToolCall, payload)
         self.assertEqual(model.call_id, "call-1")
         self.assertEqual(model.policy.risk_level, contract.RiskLevel.LOW)
 
     def test_missing_required_field_fails(self) -> None:
+        parser = json_parsing.ValidatingParser()
         payload = {
             "provider": "openai",
             "tool_name": "get_weather",
@@ -57,9 +57,10 @@ class CanonicalToolCallContractTest(unittest.TestCase):
             },
         }
         with self.assertRaises(Exception):
-            self.parser.parse_and_validate(contract.CanonicalToolCall, payload)
+            parser.parse_and_validate(contract.CanonicalToolCall, payload)
 
     def test_unknown_fields_are_tolerated(self) -> None:
+        parser = json_parsing.ValidatingParser()
         payload = {
             "provider": "openai",
             "call_id": "call-1",
@@ -78,10 +79,11 @@ class CanonicalToolCallContractTest(unittest.TestCase):
                 "future_policy_field": 1,
             },
         }
-        model = self.parser.parse_and_validate(contract.CanonicalToolCall, payload)
+        model = parser.parse_and_validate(contract.CanonicalToolCall, payload)
         self.assertEqual(model.call_id, "call-1")
 
     def test_missing_required_policy_field_fails(self) -> None:
+        parser = json_parsing.ValidatingParser()
         payload = {
             "provider": "openai",
             "call_id": "call-1",
@@ -98,9 +100,10 @@ class CanonicalToolCallContractTest(unittest.TestCase):
             },
         }
         with self.assertRaises(Exception):
-            self.parser.parse_and_validate(contract.CanonicalToolCall, payload)
+            parser.parse_and_validate(contract.CanonicalToolCall, payload)
 
     def test_invalid_risk_level_fails(self) -> None:
+        parser = json_parsing.ValidatingParser()
         payload = {
             "provider": "openai",
             "call_id": "call-1",
@@ -118,14 +121,12 @@ class CanonicalToolCallContractTest(unittest.TestCase):
             },
         }
         with self.assertRaises(Exception):
-            self.parser.parse_and_validate(contract.CanonicalToolCall, payload)
+            parser.parse_and_validate(contract.CanonicalToolCall, payload)
 
 
 class CanonicalToolResultContractTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.parser = json_parsing.ValidatingParser()
-
     def test_parse_valid_tool_result_payload(self) -> None:
+        parser = json_parsing.ValidatingParser()
         payload = {
             "provider": "openai",
             "call_id": "call-1",
@@ -137,10 +138,11 @@ class CanonicalToolResultContractTest(unittest.TestCase):
             "trace_id": "trace-1",
             "session_id": "session-1",
         }
-        model = self.parser.parse_and_validate(contract.CanonicalToolResult, payload)
+        model = parser.parse_and_validate(contract.CanonicalToolResult, payload)
         self.assertEqual(model.error_class, contract.NormalizedErrorClass.VALIDATION)
 
     def test_parse_all_normalized_error_classes(self) -> None:
+        parser = json_parsing.ValidatingParser()
         base_payload = {
             "provider": "openai",
             "call_id": "call-1",
@@ -162,10 +164,11 @@ class CanonicalToolResultContractTest(unittest.TestCase):
             with self.subTest(error_class=error_class_value):
                 payload = dict(base_payload)
                 payload["error_class"] = error_class_value
-                model = self.parser.parse_and_validate(contract.CanonicalToolResult, payload)
+                model = parser.parse_and_validate(contract.CanonicalToolResult, payload)
                 self.assertEqual(model.error_class, expected)
 
     def test_invalid_error_class_fails(self) -> None:
+        parser = json_parsing.ValidatingParser()
         payload = {
             "provider": "openai",
             "call_id": "call-1",
@@ -178,7 +181,7 @@ class CanonicalToolResultContractTest(unittest.TestCase):
             "session_id": "session-1",
         }
         with self.assertRaises(Exception):
-            self.parser.parse_and_validate(contract.CanonicalToolResult, payload)
+            parser.parse_and_validate(contract.CanonicalToolResult, payload)
 
 
 class ValidatingParserBackendCompatibilityTest(unittest.TestCase):
