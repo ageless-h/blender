@@ -308,3 +308,38 @@ If planning docs or specs conflict during implementation:
    - `docs/execution/*` milestone execution contract
    - archived/design documents (reference only)
 4. Record final decision in change-control entry before resuming work.
+
+## 17. Weekly Upstream Sync Checklist (Operator Runbook)
+
+Run this checklist at least 3 times per week (Mon/Wed/Fri) and after any upstream security/build-break alert.
+
+1. Verify upstream drift for `main`:
+
+```bash
+gh api repos/ageless-h/blender/compare/blender:main...ageless-h:main --jq '{status:.status,ahead_by:.ahead_by,behind_by:.behind_by}'
+```
+
+2. If `behind_by > 0`, create a dedicated sync branch from current `main`, sync upstream into it, and open PR to `main`.
+
+3. Merge upstream sync PR into `main` using merge commit after all required gates pass.
+
+4. Propagate `main` into milestone branches via PRs:
+   - `main` -> `work/milestone-a`
+   - `main` -> `work/milestone-bc`
+   - `main` -> `work/milestone-d`
+
+5. Post-sync verification (must all pass):
+
+```bash
+gh api repos/ageless-h/blender/compare/blender:main...ageless-h:main --jq '{behind_by:.behind_by}'
+gh api repos/ageless-h/blender/compare/ageless-h:main...ageless-h:work/milestone-a --jq '{behind_by:.behind_by}'
+gh api repos/ageless-h/blender/compare/ageless-h:main...ageless-h:work/milestone-bc --jq '{behind_by:.behind_by}'
+gh api repos/ageless-h/blender/compare/ageless-h:main...ageless-h:work/milestone-d --jq '{behind_by:.behind_by}'
+gh pr list --repo ageless-h/blender --state open --json number,title,baseRefName,headRefName
+```
+
+Success criteria:
+
+1. `main` has `behind_by=0` vs `blender:main`.
+2. All milestone branches have `behind_by=0` vs `main`.
+3. No stale `sync/*` branches remain after merge (except currently active sync branch).
