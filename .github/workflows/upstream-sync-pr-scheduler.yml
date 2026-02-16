@@ -5,116 +5,103 @@ on:
   schedule:
     - cron: '15 1 * * 1,3,5'
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   open_upstream_sync_pr:
     name: Open Upstream Sync PR
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
-      - name: Decide whether sync is needed
-        id: decide
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
+      - name: Create sync PR when upstream is ahead
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
 
-          compare="$(gh api "repos/${REPO}/compare/blender:main...${REPO}:main")"
-          behind_by="$(echo "$compare" | jq -r '.behind_by')"
-          echo "behind_by=${behind_by}" >> "$GITHUB_OUTPUT"
+            const compare = await github.request('GET /repos/{owner}/{repo}/compare/{basehead}', {
+              owner,
+              repo,
+              basehead: `blender:main...${owner}:main`,
+            });
 
-          if [ "$behind_by" -eq 0 ]; then
-            echo "should_sync=false" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=already_up_to_date" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+            const behindBy = compare.data.behind_by;
+            if (behindBy === 0) {
+              core.notice('No upstream drift. Skip creating PR.');
+              return;
+            }
 
-          open_sync_prs="$(gh pr list --repo "$REPO" --state open --base main --json number,headRefName --jq '[.[] | select(.headRefName | startswith("sync/upstream-auto-"))] | length')"
-          if [ "$open_sync_prs" -gt 0 ]; then
-            echo "should_sync=false" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=open_sync_pr_exists" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+            const openPulls = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              base: 'main',
+              per_page: 100,
+            });
 
-          branch="sync/upstream-auto-$(date -u +%Y%m%d)"
-          branch_ref="${branch//\//%2F}"
-          if gh api "repos/${REPO}/git/ref/heads/${branch_ref}" >/dev/null 2>&1; then
-            branch="${branch}-${GITHUB_RUN_ID}"
-          fi
+            const hasOpenSyncPr = openPulls.data.some((pr) =>
+              pr.head.ref.startsWith('sync/upstream-auto-')
+            );
+            if (hasOpenSyncPr) {
+              core.notice('Open upstream sync PR already exists.');
+              return;
+            }
 
-          echo "branch=${branch}" >> "$GITHUB_OUTPUT"
-          echo "should_sync=true" >> "$GITHUB_OUTPUT"
+            const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            let branch = `sync/upstream-auto-${ymd}`;
 
-      - name: Create sync branch and merge upstream
-        id: sync
-        if: steps.decide.outputs.should_sync == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          branch="${{ steps.decide.outputs.branch }}"
-          main_sha="$(gh api "repos/${REPO}/branches/main" --jq '.commit.sha')"
+            try {
+              await github.rest.git.getRef({ owner, repo, ref: `heads/${branch}` });
+              branch = `${branch}-${context.runId}`;
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+            }
 
-          gh api -X POST "repos/${REPO}/git/refs" --input - <<JSON
-          {"ref":"refs/heads/${branch}","sha":"${main_sha}"}
-          JSON
+            const mainRef = await github.rest.git.getRef({ owner, repo, ref: 'heads/main' });
+            await github.rest.git.createRef({
+              owner,
+              repo,
+              ref: `refs/heads/${branch}`,
+              sha: mainRef.data.object.sha,
+            });
 
-          if gh api -X POST "repos/${REPO}/merge-upstream" -f branch="$branch" >/dev/null; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=merge_upstream_conflict" >> "$GITHUB_OUTPUT"
-          fi
+            try {
+              await github.request('POST /repos/{owner}/{repo}/merge-upstream', {
+                owner,
+                repo,
+                branch,
+              });
+            } catch (error) {
+              if (error.status === 409) {
+                core.warning('merge-upstream conflict; manual sync required.');
+                return;
+              }
+              throw error;
+            }
 
-      - name: Create sync pull request
-        if: steps.sync.outputs.ready == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          branch="${{ steps.decide.outputs.branch }}"
-          today="$(date -u +%Y-%m-%d)"
+            const today = new Date().toISOString().slice(0, 10);
+            const body = [
+              '## Mandatory Checklist',
+              '',
+              '- [x] Conformance gate evidence included.',
+              '- [x] Security gate evidence included.',
+              '- [x] Performance gate evidence included.',
+              '- [x] Accessibility gate evidence included.',
+              '- [x] Evidence artifact paths are included.',
+              '- [x] Rollback path is documented.',
+            ].join('\n');
 
-          gh pr create \
-            --repo "$REPO" \
-            --base main \
-            --head "$branch" \
-            --title "sync: upstream blender/main -> main (${today})" \
-            --body "$(cat <<'BODY'
-## Mandatory Checklist
+            await github.rest.pulls.create({
+              owner,
+              repo,
+              base: 'main',
+              head: branch,
+              title: `sync: upstream blender/main -> main (${today})`,
+              body,
+            });
 
-- [x] Conformance gate evidence included.
-- [x] Security gate evidence included.
-- [x] Performance gate evidence included.
-- [x] Accessibility gate evidence included.
-- [x] Evidence artifact paths are included.
-- [x] Rollback path is documented.
-BODY
-)"
-
-      - name: Write summary
-        env:
-          SHOULD_SYNC: ${{ steps.decide.outputs.should_sync }}
-          BEHIND_BY: ${{ steps.decide.outputs.behind_by }}
-          BRANCH: ${{ steps.decide.outputs.branch }}
-          DECIDE_SKIP: ${{ steps.decide.outputs.skip_reason }}
-          READY: ${{ steps.sync.outputs.ready }}
-          SYNC_SKIP: ${{ steps.sync.outputs.skip_reason }}
-        run: |
-          {
-            echo "## Upstream Sync PR Scheduler"
-            echo "- behind_by: ${BEHIND_BY:-unknown}"
-            echo "- should_sync: ${SHOULD_SYNC:-false}"
-            echo "- branch: ${BRANCH:-n/a}"
-            echo "- branch_ready: ${READY:-n/a}"
-            if [ -n "${DECIDE_SKIP:-}" ]; then
-              echo "- skip_reason: ${DECIDE_SKIP}"
-            fi
-            if [ -n "${SYNC_SKIP:-}" ]; then
-              echo "- skip_reason: ${SYNC_SKIP}"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+            core.notice(`Created upstream sync PR from ${branch}.`);
