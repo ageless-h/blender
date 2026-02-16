@@ -146,7 +146,7 @@ No milestone transition without all required evidence attached.
 Protection profile for `main`, `work/milestone-a`, `work/milestone-bc`, `work/milestone-d`:
 
 1. Require pull request before merge.
-2. Require at least 2 approvals.
+2. Require at least 2 approvals by default (see Section 11A for single-maintainer exception).
 3. Dismiss stale approvals on new commits.
 4. Require conversation resolution before merge.
 5. Require all required status checks to pass:
@@ -157,9 +157,45 @@ Protection profile for `main`, `work/milestone-a`, `work/milestone-bc`, `work/mi
 6. Restrict force pushes and branch deletion.
 7. Do not allow administrator bypass except incident hotfix process in Section 14.
 
+## 11A. Single-Maintainer Exception Policy (Minimal Change)
+
+This exception activates only when all conditions are true:
+
+1. There is only one active maintainer for the repository.
+2. No non-author reviewer account is available for PR approval.
+3. All other branch protection controls in Section 11 remain enabled.
+
+Allowed exception scope:
+
+1. `required_approving_review_count` may be set to `0`.
+
+Mandatory controls that remain unchanged:
+
+1. Require pull request before merge.
+2. Dismiss stale approvals on new commits.
+3. Require conversation resolution before merge.
+4. Require all required status checks to pass:
+   - Conformance gate
+   - Security gate
+   - Performance gate
+   - Accessibility gate
+5. Restrict force pushes and branch deletion.
+6. Do not allow administrator bypass except incident hotfix process in Section 14.
+
+Single-maintainer self-review requirements before merge:
+
+1. PR includes acceptance commands executed with result summary.
+2. PR includes evidence artifact paths and rollback note.
+3. PR scope remains one ticket only with no cross-milestone scope.
+4. All four governance gates pass.
+
+Recovery rule:
+
+1. If two or more active maintainers/reviewers become available, restore `required_approving_review_count` to `2` within 24 hours.
+
 ## 12. Main Sync Policy (Single Legal Path)
 
-1. Integration into `main` is allowed only via reviewed PRs from milestone branches.
+1. Integration into `main` is allowed only via reviewed PRs from milestone branches or dedicated upstream sync branches (`sync/upstream-*`).
 2. Milestone branches must sync from `origin/main` before merge:
 
 ```bash
@@ -169,6 +205,50 @@ git rebase origin/main
 
 3. Merge strategy: squash-merge only for ticket branches into milestone branches; merge-commit only from milestone branches into `main` for traceability.
 4. Reject PR if source branch is behind `origin/main` and introduces unresolved gate drift.
+
+## 12A. Upstream Drift Sync Policy (Operational)
+
+Objective:
+
+1. Keep this fork aligned with the fast-moving upstream Blender repository while allowing milestone development to continue in parallel.
+
+Branch roles:
+
+1. `main`: upstream integration baseline branch (protected).
+2. `work/milestone-a|work/milestone-bc|work/milestone-d`: milestone delivery branches (protected).
+3. `sync/upstream-<yyyymmdd>`: temporary integration branch for upstream merge validation.
+4. `sync/main-to-<milestone>-<yyyymmdd>`: temporary propagation branch from `main` to each milestone.
+
+Sync cadence:
+
+1. Run upstream sync at least 3 times per week (recommended: Mon/Wed/Fri).
+2. Run ad-hoc sync immediately for upstream security, data-loss, or build-break fixes.
+
+Upstream sync workflow (upstream -> main):
+
+1. Create `sync/upstream-<yyyymmdd>` from current `main`.
+2. Merge `upstream/main` into that sync branch.
+3. Resolve conflicts only in the sync branch; no direct conflict edits on protected branches.
+4. Open PR `sync/upstream-* -> main`.
+5. Merge only after all required gates pass.
+
+Propagation workflow (main -> milestone branches):
+
+1. For each active milestone, create `sync/main-to-<milestone>-<yyyymmdd>` from `main`.
+2. Open PR into the corresponding `work/milestone-*` branch.
+3. Merge each milestone sync PR independently to isolate failures and rollback scope.
+
+Conflict handling rules:
+
+1. Keep upstream sync PRs integration-only; do not include feature work.
+2. If behavior fixes are needed after conflict resolution, land them in a follow-up ticket PR.
+3. Record recurring conflict hotspots in milestone notes for future planning.
+
+Rollback rules:
+
+1. Rollback a bad sync by revert PR against the affected protected branch.
+2. Do not use force push or history rewrite on protected branches for rollback.
+3. After rollback, create a new sync branch and retry with narrowed scope.
 
 ## 13. Ticket Branch Lifecycle
 
