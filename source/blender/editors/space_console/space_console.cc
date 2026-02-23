@@ -349,13 +349,13 @@ static void console_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   writer->write_struct_cast<SpaceConsole>(sl);
 }
 
-void ED_spacetype_console()
+static void console_spacetype_register(const int space_id, const char *space_name)
 {
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
-  st->spaceid = SPACE_CONSOLE;
-  STRNCPY_UTF8(st->name, "Console");
+  st->spaceid = space_id;
+  STRNCPY_UTF8(st->name, space_name);
 
   st->create = console_create;
   st->free = console_free;
@@ -392,6 +392,16 @@ void ED_spacetype_console()
   BLI_addhead(&st->regiontypes, art);
 
   BKE_spacetype_register(std::move(st));
+}
+
+void ED_spacetype_console()
+{
+  console_spacetype_register(SPACE_CONSOLE, "Console");
+}
+
+void ED_spacetype_terminal()
+{
+  console_spacetype_register(SPACE_TERMINAL, "Code Terminal");
 }
 
 }  // namespace blender
