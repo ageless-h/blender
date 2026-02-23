@@ -29,10 +29,12 @@ jobs:
             choco install svn -y
           }
 
-      - name: Update dependencies
-        shell: cmd
+      - name: Fetch Windows external libraries
+        shell: pwsh
         run: |
-          echo y| make.bat update 2022 x64
+          git submodule sync --recursive
+          git -c submodule."lib/windows_x64".update=checkout submodule update --init lib/windows_x64
+          git -C lib/windows_x64 lfs pull
 
       - name: Build release with ninja
         shell: cmd
