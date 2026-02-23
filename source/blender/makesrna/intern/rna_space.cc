@@ -139,6 +139,11 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
      "Python Console",
      "Interactive programmatic console for "
      "advanced editing and script development"},
+    {SPACE_TERMINAL,
+     "TERMINAL",
+     ICON_CONSOLE,
+     "Code Terminal",
+     "Interactive code terminal editor"},
     {SPACE_INFO, "INFO", ICON_INFO, "Info", "Log of operations, warnings and error messages"},
     /* Special case: Top-bar and Status-bar aren't supposed to be a regular editor for the user. */
     {SPACE_TOPBAR,
@@ -746,6 +751,8 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
     case SPACE_NODE:
       return RNA_SpaceNodeEditor;
     case SPACE_CONSOLE:
+      return RNA_SpaceConsole;
+    case SPACE_TERMINAL:
       return RNA_SpaceConsole;
     case SPACE_USERPREF:
       return RNA_SpacePreferences;
