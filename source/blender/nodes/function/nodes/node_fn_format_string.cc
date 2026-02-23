@@ -460,25 +460,26 @@ static void format_with_fmt(const fmt::string_view format,
     mask.foreach_index([&](const int64_t i) {
       std::string &output = r_formatted_strings[i];
       auto output_inserter = std::back_inserter(output);
+      const auto value = varray[i];
       try {
         if (precisions) {
             const int precision = std::max(0, precisions->get<int>(i));
             if (widths) {
               const int width = std::max(0, widths->get<int>(i));
               fmt::vformat_to(
-                  output_inserter, format, fmt::make_format_args(varray[i], width, precision));
+                  output_inserter, format, fmt::make_format_args(value, width, precision));
             }
             else {
-              fmt::vformat_to(output_inserter, format, fmt::make_format_args(varray[i], precision));
+              fmt::vformat_to(output_inserter, format, fmt::make_format_args(value, precision));
             }
           }
           else {
             if (widths) {
               const int width = std::max(0, widths->get<int>(i));
-              fmt::vformat_to(output_inserter, format, fmt::make_format_args(varray[i], width));
+              fmt::vformat_to(output_inserter, format, fmt::make_format_args(value, width));
             }
             else {
-              fmt::vformat_to(output_inserter, format, fmt::make_format_args(varray[i]));
+              fmt::vformat_to(output_inserter, format, fmt::make_format_args(value));
             }
           }
       }
