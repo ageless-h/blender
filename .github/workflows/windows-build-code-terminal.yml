@@ -31,7 +31,8 @@ jobs:
 
       - name: Update dependencies
         shell: cmd
-        run: make.bat update 2022 x64
+        run: |
+          echo y| make.bat update 2022 x64
 
       - name: Build release with ninja
         shell: cmd
