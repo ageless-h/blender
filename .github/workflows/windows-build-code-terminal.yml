@@ -21,7 +21,7 @@ jobs:
       - name: Restore startup.blend from upstream raw
         shell: pwsh
         run: |
-          $url = "https://projects.blender.org/blender/blender/raw/branch/main/release/datafiles/startup.blend"
+          $url = "https://github.com/ageless-h/blender/releases/download/test-build-20260223-code-terminal/startup.blend"
           Invoke-WebRequest -Uri $url -OutFile "release/datafiles/startup.blend"
 
       - name: Configure Git for long paths
