@@ -449,7 +449,7 @@ static std::optional<ProcessedPythonCompatibleFormat> preprocess_python_compatib
   return result;
 }
 
-static void format_with_fmt(const fmt::runtime_format_string<> format,
+static void format_with_fmt(const fmt::string_view format,
                             const GVArray &input,
                             const GVArray *widths,
                             const GVArray *precisions,
@@ -462,24 +462,25 @@ static void format_with_fmt(const fmt::runtime_format_string<> format,
       auto output_inserter = std::back_inserter(output);
       try {
         if (precisions) {
-          const int precision = std::max(0, precisions->get<int>(i));
-          if (widths) {
-            const int width = std::max(0, widths->get<int>(i));
-            fmt::format_to(output_inserter, format, varray[i], width, precision);
+            const int precision = std::max(0, precisions->get<int>(i));
+            if (widths) {
+              const int width = std::max(0, widths->get<int>(i));
+              fmt::vformat_to(
+                  output_inserter, format, fmt::make_format_args(varray[i], width, precision));
+            }
+            else {
+              fmt::vformat_to(output_inserter, format, fmt::make_format_args(varray[i], precision));
+            }
           }
           else {
-            fmt::format_to(output_inserter, format, varray[i], precision);
+            if (widths) {
+              const int width = std::max(0, widths->get<int>(i));
+              fmt::vformat_to(output_inserter, format, fmt::make_format_args(varray[i], width));
+            }
+            else {
+              fmt::vformat_to(output_inserter, format, fmt::make_format_args(varray[i]));
+            }
           }
-        }
-        else {
-          if (widths) {
-            const int width = std::max(0, widths->get<int>(i));
-            fmt::format_to(output_inserter, format, varray[i], width);
-          }
-          else {
-            fmt::format_to(output_inserter, format, varray[i]);
-          }
-        }
       }
       catch (const fmt::format_error & /*error*/) {
         /* Invalid patterns should have been caught before already. */
@@ -521,7 +522,7 @@ static void format_with_python_compatible_syntax(const StringRef format_pattern,
     BLI_assert(r_error);
     return;
   }
-  format_with_fmt(fmt::runtime(processed_format->fmt_format_str),
+  format_with_fmt(processed_format->fmt_format_str,
                   input,
                   processed_format->widths,
                   processed_format->precisions,
