@@ -2,6 +2,9 @@ name: windows-build-code-terminal
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - code-terminal-editor
 
 jobs:
   build:
