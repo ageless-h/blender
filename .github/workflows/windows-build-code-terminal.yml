@@ -17,11 +17,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-          lfs: true
 
-      - name: Pull repository LFS objects
+      - name: Restore startup.blend from upstream raw
         shell: pwsh
-        run: git lfs pull
+        run: |
+          $url = "https://projects.blender.org/blender/blender/raw/branch/main/release/datafiles/startup.blend"
+          Invoke-WebRequest -Uri $url -OutFile "release/datafiles/startup.blend"
 
       - name: Configure Git for long paths
         shell: pwsh
