@@ -17,6 +17,11 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+          lfs: true
+
+      - name: Pull repository LFS objects
+        shell: pwsh
+        run: git lfs pull
 
       - name: Configure Git for long paths
         shell: pwsh
