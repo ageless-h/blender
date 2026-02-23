@@ -258,9 +258,15 @@ static unique_ptr<ImageInput> get_oiio_reader(const char *format,
 {
   /* Attempt to create a reader based on the passed in format. */
   unique_ptr<ImageInput> in = ImageInput::create(format);
-  if (!(in && in->valid_file(&mem_reader))) {
+  if (!in) {
     return nullptr;
   }
+
+#if OIIO_VERSION_MAJOR >= 3
+  if (!in->valid_file(&mem_reader)) {
+    return nullptr;
+  }
+#endif
 
   /* Open the reader using the ioproxy. */
   in->set_ioproxy(&mem_reader);
@@ -274,12 +280,24 @@ static unique_ptr<ImageInput> get_oiio_reader(const char *format,
 
 bool imb_oiio_check(const uchar *mem, size_t mem_size, const char *file_format)
 {
-  ImageSpec config, spec;
-
   /* This memory proxy must remain alive for the full duration of the read. */
   Filesystem::IOMemReader mem_reader(cspan<uchar>(mem, mem_size));
   unique_ptr<ImageInput> in = ImageInput::create(file_format);
-  return in && in->valid_file(&mem_reader);
+  if (!in) {
+    return false;
+  }
+
+#if OIIO_VERSION_MAJOR >= 3
+  return in->valid_file(&mem_reader);
+#else
+  ImageSpec spec;
+  in->set_ioproxy(&mem_reader);
+  const bool ok = in->open("", spec);
+  if (ok) {
+    in->close();
+  }
+  return ok;
+#endif
 }
 
 ImBuf *imb_oiio_read(const ReadContext &ctx,
