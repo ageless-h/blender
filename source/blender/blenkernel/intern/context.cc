@@ -1032,7 +1032,7 @@ SpaceText *CTX_wm_space_text(const bContext *C)
 SpaceConsole *CTX_wm_space_console(const bContext *C)
 {
   ScrArea *area = CTX_wm_area(C);
-  if (area && area->spacetype == SPACE_CONSOLE) {
+  if (area && ELEM(area->spacetype, SPACE_CONSOLE, SPACE_TERMINAL)) {
     return static_cast<SpaceConsole *>(area->spacedata.first);
   }
   return nullptr;

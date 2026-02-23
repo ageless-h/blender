@@ -164,6 +164,9 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
         case SPACE_CONSOLE:
           ts = &btheme->space_console;
           break;
+        case SPACE_TERMINAL:
+          ts = &btheme->space_console;
+          break;
         case SPACE_NODE:
           ts = &btheme->space_node;
           break;
